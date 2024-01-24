@@ -61,6 +61,13 @@ components_manager:
             path: /v1/hello               # Registering handler by URL '/v1/hello'.
             method: POST                  # It will only reply to POST requests.
             task_processor: main-task-processor  # Run it on CPU bound task processor
+        
+
+
+        handler-v1-get-courier:
+            path: /v1/couriers/{id}
+            method: GET
+            task_processor: main-task-processor
 
         postgres-db-1:
             dbconnection: $dbconnection

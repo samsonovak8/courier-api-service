@@ -1,4 +1,3 @@
-INSERT INTO hello_schema.users(name, count)
-VALUES ('user-from-initial_data.sql', 42)
-ON CONFLICT (name)
-DO NOTHING;
+INSERT INTO delivery_service.courier(id, region_id, transport, max_weight, working_time)
+VALUES
+    ('1', '1', 'пеший', '60', '8:00-20:00');
