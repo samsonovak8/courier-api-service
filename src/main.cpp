@@ -9,6 +9,8 @@
 
 
 #include "handlers/v1/get-courier/view.hpp"
+#include "handlers/v1/get-all-couriers/view.hpp"
+#include "handlers/v1/add-couriers/view.hpp"
 
 #include "hello.hpp"
 
@@ -24,7 +26,8 @@ int main(int argc, char* argv[]) {
   enrollment_template::AppendHello(component_list);
 
   DeliveryService::AppendGetCourier(component_list);
-  
+  DeliveryService::AppendGetAllCouriers(component_list);
+  DeliveryService::AppendAddCouriers(component_list);
 
   return userver::utils::DaemonMain(argc, argv, component_list);
 }

@@ -63,9 +63,18 @@ components_manager:
             task_processor: main-task-processor  # Run it on CPU bound task processor
         
 
+        handler-v1-add-couriers:
+            path: /v1/couriers
+            method: POST
+            task_processor: main-task-processor
 
         handler-v1-get-courier:
             path: /v1/couriers/{id}
+            method: GET
+            task_processor: main-task-processor
+
+        handler-v1-get-all-couriers:
+            path: /v1/couriers
             method: GET
             task_processor: main-task-processor
 
