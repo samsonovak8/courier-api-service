@@ -8,17 +8,17 @@
 #include <userver/storages/postgres/cluster.hpp>
 #include <userver/storages/postgres/component.hpp>
 
-#include "../../../models/courier.hpp"
+#include "../../../models/order.hpp"
 
 namespace DeliveryService {
 
 namespace {
 
-class AddCouriers final : public userver::server::handlers::HttpHandlerBase {
+class AddOrders final : public userver::server::handlers::HttpHandlerBase {
  public:
-  static constexpr std::string_view kName = "handler-v1-add-couriers";
+  static constexpr std::string_view kName = "handler-v1-add-orders";
 
-  AddCouriers(const userver::components::ComponentConfig& config,
+  AddOrders(const userver::components::ComponentConfig& config,
               const userver::components::ComponentContext& component_context)
       : HttpHandlerBase(config, component_context),
         pg_cluster_(
@@ -35,34 +35,32 @@ class AddCouriers final : public userver::server::handlers::HttpHandlerBase {
         userver::formats::json::FromString(request.RequestBody());
 
     auto region = request_body["region"].As<std::optional<std::string>>();
-    auto transport = request_body["transport"].As<std::optional<std::string>>();
-    auto max_weight= request_body["max_weight"].As<std::optional<std::string>>();
-    auto working_hours = request_body["working_hours"].As<std::optional<std::string>>();
+    auto weight= request_body["weight"].As<std::optional<std::string>>();
+    auto delivery_hours = request_body["delivery_hours"].As<std::optional<std::string>>();
+    auto price = request_body["price"].As<std::optional<std::string>>();
     
-    if (!region.has_value() || !transport.has_value() || !max_weight.has_value() || !working_hours.has_value()) {
+
+    if (!region.has_value() || !price.has_value() || !weight.has_value() || !delivery_hours.has_value()) {
       auto& response = request.GetHttpResponse();
       response.SetStatus(userver::server::http::HttpStatus::kBadRequest);
       return {};
     }
-  
-    // auto result = pg_cluster_->Execute(
-    //   userver::storages::postgres::ClusterHostType::kMaster,
-    //   "SELECT * FROM delivery_service.courier");
+
     auto result = pg_cluster_->Execute(
         userver::storages::postgres::ClusterHostType::kMaster,
-        "INSERT INTO delivery_service.courier(region, transport, max_weight, working_hours) VALUES($1, $2, $3, $4) "
+        "INSERT INTO delivery_service.order(region, weight, delivery_hours, price, courier_id, completed_time) VALUES($1, $2, $3, $4, $5, $6) "
         "ON CONFLICT DO NOTHING "
         "RETURNING *",
-        region.value(), transport.value(), max_weight.value(), working_hours.value());
+        region.value(), weight.value(), delivery_hours.value(), price.value(), "1", "0");
 
     if (result.IsEmpty()) {
-      throw std::runtime_error("Couriers insertion conflict");
+      throw std::runtime_error("Orders insertion conflict");
     }
 
-    auto courier =
-        result.AsSingleRow<TCourier>(userver::storages::postgres::kRowTag);
+    auto order =
+        result.AsSingleRow<TOrder>(userver::storages::postgres::kRowTag);
     return ToString(
-        userver::formats::json::ValueBuilder{courier}.ExtractValue());
+        userver::formats::json::ValueBuilder{order}.ExtractValue());
   }
 
  private:
@@ -71,8 +69,8 @@ class AddCouriers final : public userver::server::handlers::HttpHandlerBase {
 
 }  // namespace
 
-void AppendAddCouriers(userver::components::ComponentList& component_list) {
-  component_list.Append<AddCouriers>();
+void AppendAddOrders(userver::components::ComponentList& component_list) {
+  component_list.Append<AddOrders>();
 }
 
 }  // namespace DeliveryService

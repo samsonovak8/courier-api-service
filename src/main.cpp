@@ -12,6 +12,10 @@
 #include "handlers/v1/get-all-couriers/view.hpp"
 #include "handlers/v1/add-couriers/view.hpp"
 
+#include "handlers/v1/get-all-orders/view.hpp"
+#include "handlers/v1/get-order/view.hpp"
+#include "handlers/v1/add-orders/view.hpp"
+
 #include "hello.hpp"
 
 int main(int argc, char* argv[]) {
@@ -29,5 +33,8 @@ int main(int argc, char* argv[]) {
   DeliveryService::AppendGetAllCouriers(component_list);
   DeliveryService::AppendAddCouriers(component_list);
 
+  DeliveryService::AppendGetAllOrders(component_list);
+  DeliveryService::AppendGetOrder(component_list);
+   DeliveryService::AppendAddOrders(component_list);
   return userver::utils::DaemonMain(argc, argv, component_list);
 }

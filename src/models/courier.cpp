@@ -7,10 +7,10 @@ userver::formats::json::Value Serialize(
     userver::formats::serialize::To<userver::formats::json::Value>) {
   userver::formats::json::ValueBuilder item;
   item["id"] = courier.id;
-  item["region_id"] = courier.region_id;
+  item["region"] = courier.region;
   item["transport"] = courier.transport;
   item["max_weight"] = courier.max_weight;
-  item["working_time"] = courier.working_time;
+  item["working_hours"] = courier.working_hours;
   return item.ExtractValue();
 }
 

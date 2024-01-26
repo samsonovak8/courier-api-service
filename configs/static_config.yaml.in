@@ -77,6 +77,21 @@ components_manager:
             path: /v1/couriers
             method: GET
             task_processor: main-task-processor
+        
+        handler-v1-add-orders:
+            path: /v1/orders
+            method: POST
+            task_processor: main-task-processor
+        
+        handler-v1-get-order:
+            path: /v1/orders/{id}
+            method: GET
+            task_processor: main-task-processor
+        
+        handler-v1-get-all-orders:
+            path: /v1/orders
+            method: GET
+            task_processor: main-task-processor
 
         postgres-db-1:
             dbconnection: $dbconnection

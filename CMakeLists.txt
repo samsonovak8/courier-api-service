@@ -19,6 +19,14 @@ add_library(${PROJECT_NAME}_objs OBJECT
     src/handlers/v1/get-all-couriers/view.cpp
     src/handlers/v1/add-couriers/view.hpp
     src/handlers/v1/add-couriers/view.cpp
+    src/models/order.hpp
+    src/models/order.cpp
+    src/handlers/v1/get-all-orders/view.hpp
+    src/handlers/v1/get-all-orders/view.cpp
+    src/handlers/v1/get-order/view.hpp
+    src/handlers/v1/get-order/view.cpp
+    src/handlers/v1/add-orders/view.hpp
+    src/handlers/v1/add-orders/view.cpp
 )
 target_link_libraries(${PROJECT_NAME}_objs PUBLIC userver-core userver-postgresql)
 
