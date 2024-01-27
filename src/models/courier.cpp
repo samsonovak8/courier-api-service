@@ -9,7 +9,6 @@ userver::formats::json::Value Serialize(
   item["id"] = courier.id;
   item["region"] = courier.region;
   item["transport"] = courier.transport;
-  item["max_weight"] = courier.max_weight;
   item["working_hours"] = courier.working_hours;
   return item.ExtractValue();
 }

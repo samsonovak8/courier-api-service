@@ -15,6 +15,7 @@
 #include "handlers/v1/get-all-orders/view.hpp"
 #include "handlers/v1/get-order/view.hpp"
 #include "handlers/v1/add-orders/view.hpp"
+#include "handlers/v1/complete-orders/view.hpp"
 
 #include "hello.hpp"
 
@@ -35,6 +36,8 @@ int main(int argc, char* argv[]) {
 
   DeliveryService::AppendGetAllOrders(component_list);
   DeliveryService::AppendGetOrder(component_list);
-   DeliveryService::AppendAddOrders(component_list);
+  DeliveryService::AppendAddOrders(component_list);
+
+  DeliveryService::AppendCompleteOrders(component_list);
   return userver::utils::DaemonMain(argc, argv, component_list);
 }

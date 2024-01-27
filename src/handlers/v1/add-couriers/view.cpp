@@ -36,10 +36,9 @@ class AddCouriers final : public userver::server::handlers::HttpHandlerBase {
 
     auto region = request_body["region"].As<std::optional<std::string>>();
     auto transport = request_body["transport"].As<std::optional<std::string>>();
-    auto max_weight= request_body["max_weight"].As<std::optional<std::string>>();
     auto working_hours = request_body["working_hours"].As<std::optional<std::string>>();
     
-    if (!region.has_value() || !transport.has_value() || !max_weight.has_value() || !working_hours.has_value()) {
+    if (!region.has_value() || !transport.has_value() || !working_hours.has_value()) {
       auto& response = request.GetHttpResponse();
       response.SetStatus(userver::server::http::HttpStatus::kBadRequest);
       return {};
@@ -50,10 +49,10 @@ class AddCouriers final : public userver::server::handlers::HttpHandlerBase {
     //   "SELECT * FROM delivery_service.courier");
     auto result = pg_cluster_->Execute(
         userver::storages::postgres::ClusterHostType::kMaster,
-        "INSERT INTO delivery_service.courier(region, transport, max_weight, working_hours) VALUES($1, $2, $3, $4) "
+        "INSERT INTO delivery_service.courier(region, transport, working_hours) VALUES($1, $2, $3) "
         "ON CONFLICT DO NOTHING "
         "RETURNING *",
-        region.value(), transport.value(), max_weight.value(), working_hours.value());
+        region.value(), transport.value(), working_hours.value());
 
     if (result.IsEmpty()) {
       throw std::runtime_error("Couriers insertion conflict");

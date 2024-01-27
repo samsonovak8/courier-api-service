@@ -11,7 +11,6 @@ struct TCourier {
   std::string id;
   std::string region;
   std::string transport;
-  std::string max_weight;
   std::string working_hours;
 };
 

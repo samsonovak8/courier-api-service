@@ -1,6 +1,6 @@
-INSERT INTO delivery_service.courier(id, region, transport, max_weight, working_hours)
+INSERT INTO delivery_service.courier(id, region, transport, working_hours)
 VALUES
-    ('1', '1', 'пеший', '60', '8:00-20:00');
+    ('1', '1', 'пеший', '8:00-20:00');
 
 INSERT INTO delivery_service.order(id, region, weight, delivery_hours, price, courier_id, completed_time)
 VALUES

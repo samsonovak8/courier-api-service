@@ -92,6 +92,11 @@ components_manager:
             path: /v1/orders
             method: GET
             task_processor: main-task-processor
+        
+        handler-v1-complete-orders:
+            path: /v1/orders/complete
+            method: POST
+            task_processor: main-task-processor
 
         postgres-db-1:
             dbconnection: $dbconnection

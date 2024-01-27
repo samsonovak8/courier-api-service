@@ -17,7 +17,6 @@ CREATE TABLE IF NOT EXISTS delivery_service.courier (
     id TEXT PRIMARY KEY DEFAULT uuid_generate_v4(),
     region TEXT NOT NULL,
     transport TEXT NOT NULL,
-    max_weight TEXT NOT NULL,
     working_hours TEXT NOT NULL
 );
 
