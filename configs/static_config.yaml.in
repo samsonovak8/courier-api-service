@@ -97,6 +97,16 @@ components_manager:
             path: /v1/orders/complete
             method: POST
             task_processor: main-task-processor
+        
+        handler-v1-assign-orders:
+            path: /v1/orders/assign
+            method: POST
+            task_processor: main-task-processor
+
+        handler-v1-get-couriers-assignments:
+            path: /v1/couriers/assignments
+            method: GET
+            task_processor: main-task-processor
 
         postgres-db-1:
             dbconnection: $dbconnection

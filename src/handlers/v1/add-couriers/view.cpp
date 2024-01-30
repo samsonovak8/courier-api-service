@@ -9,6 +9,7 @@
 #include <userver/storages/postgres/component.hpp>
 
 #include "../../../models/courier.hpp"
+#include <regex>
 
 namespace DeliveryService {
 
@@ -44,9 +45,11 @@ class AddCouriers final : public userver::server::handlers::HttpHandlerBase {
       return {};
     }
   
-    // auto result = pg_cluster_->Execute(
-    //   userver::storages::postgres::ClusterHostType::kMaster,
-    //   "SELECT * FROM delivery_service.courier");
+    if (!dataIsValid(region, transport, working_hours)) {
+      auto& response = request.GetHttpResponse();
+      response.SetStatus(userver::server::http::HttpStatus::kBadRequest);
+      return {};
+    }
     auto result = pg_cluster_->Execute(
         userver::storages::postgres::ClusterHostType::kMaster,
         "INSERT INTO delivery_service.courier(region, transport, working_hours) VALUES($1, $2, $3) "
@@ -65,6 +68,23 @@ class AddCouriers final : public userver::server::handlers::HttpHandlerBase {
   }
 
  private:
+  bool dataIsValid(const std::optional<std::string>& region, const std::optional<std::string>& transport, const std::optional<std::string>& working_hours) const {
+    for (auto digit : region.value()) {
+      if (!std::isdigit(static_cast<unsigned char>(digit))) {
+        return false;
+      }
+    }
+    if (transport.value() != "пеший" && transport.value() != "велокурьер" && transport.value() != "авто") {
+      return false;
+    }
+    std::regex validTime("(['0'-'9']|'0'['0'-'9']|'1'['0'-'9']|'2'['0'-'3']):(['0'-'5']['0'-'9'])");
+    std::string interval_begin = working_hours.value().substr(0, 2);
+    std::string interval_end = working_hours.value().substr(3, 5);
+    if (!std::regex_match(interval_begin, validTime) || !std::regex_match(interval_end, validTime)) {
+      return false;
+    }
+    return true;
+  }
   userver::storages::postgres::ClusterPtr pg_cluster_;
 };
 

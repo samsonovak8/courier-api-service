@@ -4,4 +4,5 @@ VALUES
 
 INSERT INTO delivery_service.order(id, region, weight, delivery_hours, price, courier_id, completed_time)
 VALUES
-    ('1', '1', '60', '10:00-11:00', '1024', '1', '0');
+    ('1', '1', '60', '20:00-21:00', '1024', '1', '0'),
+    ('2', '1', '60', '10:00-11:00', '1024', '1', '0');
