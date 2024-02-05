@@ -36,6 +36,12 @@ class CompleteOrders final : public userver::server::handlers::HttpHandlerBase {
     auto courier_id = request_body["courier_id"].As<std::optional<std::string>>();
     auto order_id = request_body["order_id"].As<std::optional<std::string>>();
     auto completed_time = request_body["completed_time"].As<std::optional<std::string>>();
+
+    if (!dataIsValid(courier_id, order_id, completed_time)) {
+      auto& response = request.GetHttpResponse();
+      response.SetStatus(userver::server::http::HttpStatus::kNotFound);
+      return {};
+    }
     
     auto result = pg_cluster_->Execute(
         userver::storages::postgres::ClusterHostType::kMaster,
@@ -79,6 +85,26 @@ class CompleteOrders final : public userver::server::handlers::HttpHandlerBase {
   }
 
  private:
+ bool dataIsValid(const std::optional<std::string>& courier_id,
+                   const std::optional<std::string>& order_id,
+                   const std::optional<std::string>& completed_time) const {
+    if (dataIsEmpty(courier_id, order_id, completed_time)) {
+      return false;
+    }
+
+    std::regex validTime(R"(([01][0-9]|2[0-3]):[0-5][0-9])");
+    if (completed_time && !std::regex_match(*completed_time, validTime)) {
+      return false;
+    }
+
+    return true;
+  }
+  bool dataIsEmpty(const std::optional<std::string>& courier_id,
+                   const std::optional<std::string>& order_id,
+                   const std::optional<std::string>& completed_time) const {
+    return !courier_id.has_value() || !order_id.has_value() ||
+           !completed_time.has_value();
+  }
   userver::storages::postgres::ClusterPtr pg_cluster_;
 };
 

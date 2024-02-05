@@ -8,8 +8,8 @@
 #include <userver/storages/postgres/cluster.hpp>
 #include <userver/storages/postgres/component.hpp>
 
-#include "../../../models/courier.hpp"
 #include <regex>
+#include "../../../models/courier.hpp"
 
 namespace DeliveryService {
 
@@ -30,29 +30,23 @@ class AddCouriers final : public userver::server::handlers::HttpHandlerBase {
   std::string HandleRequestThrow(
       const userver::server::http::HttpRequest& request,
       userver::server::request::RequestContext&) const override {
-      
-        
     auto request_body =
         userver::formats::json::FromString(request.RequestBody());
 
     auto region = request_body["region"].As<std::optional<std::string>>();
     auto transport = request_body["transport"].As<std::optional<std::string>>();
-    auto working_hours = request_body["working_hours"].As<std::optional<std::string>>();
-    
-    if (!region.has_value() || !transport.has_value() || !working_hours.has_value()) {
-      auto& response = request.GetHttpResponse();
-      response.SetStatus(userver::server::http::HttpStatus::kBadRequest);
-      return {};
-    }
-  
-    if (!dataIsValid(region, transport, working_hours)) {
+    auto working_hours =
+        request_body["working_hours"].As<std::optional<std::string>>();
+
+    if (!dataIsEmpty(region, transport, working_hours)) {
       auto& response = request.GetHttpResponse();
       response.SetStatus(userver::server::http::HttpStatus::kBadRequest);
       return {};
     }
     auto result = pg_cluster_->Execute(
         userver::storages::postgres::ClusterHostType::kMaster,
-        "INSERT INTO delivery_service.courier(region, transport, working_hours) VALUES($1, $2, $3) "
+        "INSERT INTO delivery_service.courier(region, transport, "
+        "working_hours) VALUES($1, $2, $3) "
         "ON CONFLICT DO NOTHING "
         "RETURNING *",
         region.value(), transport.value(), working_hours.value());
@@ -68,22 +62,35 @@ class AddCouriers final : public userver::server::handlers::HttpHandlerBase {
   }
 
  private:
-  bool dataIsValid(const std::optional<std::string>& region, const std::optional<std::string>& transport, const std::optional<std::string>& working_hours) const {
-    for (auto digit : region.value()) {
-      if (!std::isdigit(static_cast<unsigned char>(digit))) {
-        return false;
-      }
-    }
-    if (transport.value() != "пеший" && transport.value() != "велокурьер" && transport.value() != "авто") {
+  bool dataIsValid(const std::optional<std::string>& region,
+                   const std::optional<std::string>& transport,
+                   const std::optional<std::string>& working_hours) const {
+    if (dataIsEmpty(region, transport, working_hours)) {
       return false;
     }
-    std::regex validTime("(['0'-'9']|'0'['0'-'9']|'1'['0'-'9']|'2'['0'-'3']):(['0'-'5']['0'-'9'])");
-    std::string interval_begin = working_hours.value().substr(0, 2);
-    std::string interval_end = working_hours.value().substr(3, 5);
-    if (!std::regex_match(interval_begin, validTime) || !std::regex_match(interval_end, validTime)) {
+
+    if (region && !std::all_of(region->begin(), region->end(), ::isdigit)) {
       return false;
     }
+
+    static const std::unordered_set<std::string> validTransport = {
+        "пеший", "велокурьер", "авто"};
+    if (transport && validTransport.find(*transport) == validTransport.end()) {
+      return false;
+    }
+
+    std::regex validTime(R"(([01][0-9]|2[0-3]):[0-5][0-9])");
+    if (working_hours && !std::regex_match(*working_hours, validTime)) {
+      return false;
+    }
+
     return true;
+  }
+  bool dataIsEmpty(const std::optional<std::string>& region,
+                   const std::optional<std::string>& transport,
+                   const std::optional<std::string>& working_hours) const {
+    return !region.has_value() || !transport.has_value() ||
+           !working_hours.has_value();
   }
   userver::storages::postgres::ClusterPtr pg_cluster_;
 };
