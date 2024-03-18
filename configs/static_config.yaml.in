@@ -108,6 +108,11 @@ components_manager:
             method: GET
             task_processor: main-task-processor
 
+        handler-v1-get-courier-meta-info:
+            path: /v1/couriers/meta-info/{id}
+            method: GET
+            task_processor: main-task-processor
+
         postgres-db-1:
             dbconnection: $dbconnection
             blocking_task_processor: fs-task-processor

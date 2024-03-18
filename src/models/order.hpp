@@ -15,6 +15,7 @@ struct TOrder {
   std::string price;
   std::string courier_id;
   std::string completed_time;
+  std::string completed_date;
 };
 
 userver::formats::json::Value Serialize(

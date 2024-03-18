@@ -9,6 +9,7 @@
 #include <userver/storages/postgres/component.hpp>
 
 #include "../../../models/order.hpp"
+#include <regex>
 
 namespace DeliveryService {
 
@@ -36,6 +37,12 @@ class CompleteOrders final : public userver::server::handlers::HttpHandlerBase {
     auto courier_id = request_body["courier_id"].As<std::optional<std::string>>();
     auto order_id = request_body["order_id"].As<std::optional<std::string>>();
     auto completed_time = request_body["completed_time"].As<std::optional<std::string>>();
+    auto start = std::chrono::system_clock::now();
+    std::time_t start_time = std::chrono::system_clock::to_time_t(start);
+    std::tm tm_start = *std::localtime(&start_time);
+    char date_buffer[11]; // Enough space for yyyy-mm-dd and null terminator
+    std::strftime(date_buffer, 11, "%Y-%m-%d", &tm_start);
+     std::string completed_date(buffer);
 
     if (!dataIsValid(courier_id, order_id, completed_time)) {
       auto& response = request.GetHttpResponse();
@@ -68,10 +75,10 @@ class CompleteOrders final : public userver::server::handlers::HttpHandlerBase {
     result = pg_cluster_->Execute(
         userver::storages::postgres::ClusterHostType::kMaster,
         "UPDATE delivery_service.order "
-        "SET completed_time = $1 "
-        "WHERE id = $2 "
+        "SET completed_time = $1, completed_date=$2 "
+        "WHERE id = $3 "
         "RETURNING *",
-        completed_time.value(), order_id.value());
+        completed_time.value(), completed_date, order_id.value());
       
     if (result.IsEmpty()) {
       auto& response = request.GetHttpResponse();

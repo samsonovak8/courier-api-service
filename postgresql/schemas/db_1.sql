@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS delivery_service.order (
     price TEXT NOT NULL,
     courier_id TEXT,
     completed_time TEXT,
+    completed_date TEXT,
     foreign key(courier_id) REFERENCES delivery_service.courier(id)
 );
 

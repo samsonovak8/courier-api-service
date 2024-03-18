@@ -48,12 +48,6 @@ class GetOrder final : public userver::server::handlers::HttpHandlerBase {
 
     auto order =
         result.AsSingleRow<TOrder>(userver::storages::postgres::kRowTag);
-    // if (bookmark.owner_id != session->user_id) {
-    //   auto& response = request.GetHttpResponse();
-    //   response.SetStatus(userver::server::http::HttpStatus::kNotFound);
-    //   return {};
-    // }
-    //return fmt::format("Hello, world!\n");
     return ToString(userver::formats::json::ValueBuilder{order}.ExtractValue());
   }
 

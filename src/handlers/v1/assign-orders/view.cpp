@@ -9,7 +9,10 @@
 #include <userver/storages/postgres/component.hpp>
 
 #include <algorithm>
+#include <iomanip>
+#include <regex>
 #include <set>
+#include <string>
 #include <typeinfo>
 #include <unordered_map>
 #include <vector>
@@ -35,69 +38,96 @@ class AssignOrders final : public userver::server::handlers::HttpHandlerBase {
   std::string HandleRequestThrow(
       const userver::server::http::HttpRequest& request,
       userver::server::request::RequestContext&) const override {
-    auto uncompleted_orders = GetUncompletedOrders();
-    auto couriers = GetSortedCouriers();
-
-    for (const auto& order : uncompleted_orders) {
-      auto assigned_courier = FindCourierForOrder(order, couriers);
-      if (!assigned_courier.empty()) {
-        UpdateOrderWithCourier(order.id, assigned_courier);
-      }
-    }
-
-    return userver::formats::json::ToString(response.ExtractValue());
-  }
-
- private:
-  std::vector<TOrder> GetUncompletedOrders() const {
-    auto uncompleted_orders_set = pg_cluster_->Execute(
+    std::optional<userver::storages::postgres::ResultSet> uncompleted_orders;
+    uncompleted_orders = pg_cluster_->Execute(
         userver::storages::postgres::ClusterHostType::kMaster,
         "SELECT * FROM delivery_service.order WHERE completed_time = $1", "0");
 
-    return uncompleted_orders_set.AsSetOf<TOrder>(
-        userver::storages::postgres::kRowTag);
-  }
-
-  std::set<TCourier> GetSortedCouriers() const {
-    auto couriers_set = pg_cluster_->Execute(
-        userver::storages::postgres::ClusterHostType::kMaster,
-        "SELECT * FROM delivery_service.courier");
-
-    auto comp = [](const TCourier& a, const TCourier& b) {
+    auto comp = [&](const TCourier& a, const TCourier& b) {
       return ConvertToMinutes(a.working_hours) <
              ConvertToMinutes(b.working_hours);
     };
 
-    return std::set<TCourier, decltype(comp)>(
-        couriers_set.AsSetOf<TCourier>(userver::storages::postgres::kRowTag)
-            .begin(),
-        couriers_set.AsSetOf<TCourier>(userver::storages::postgres::kRowTag)
-            .end(),
-        comp);
+    std::set<TCourier, decltype(comp)> couriers(comp);
+    auto couriers_set = pg_cluster_->Execute(
+        userver::storages::postgres::ClusterHostType::kMaster,
+        "SELECT * FROM delivery_service.courier");
+
+    for (auto courier :
+         couriers_set.AsSetOf<TCourier>(userver::storages::postgres::kRowTag)) {
+      couriers.insert(courier);
+    }
+
+    std::string assignments = "";
+    for (const auto& order : uncompleted_orders.value().AsSetOf<TOrder>(
+             userver::storages::postgres::kRowTag)) {
+      std::string assigned_courier = "";
+      for (auto courier : couriers) {
+        if (IsCourierEligible(order, courier, order.delivery_hours,
+                              courier.working_hours, courier.transport)) {
+          couriers.erase(courier);
+          UpdateCouierWorkingHours(courier, order);
+          couriers.insert(courier);
+          assigned_courier = courier.id;
+          break;
+        }
+      }
+      if (assigned_courier != "") {
+        assignments +=
+            "Order:" +
+            userver::formats::json::ToString(
+                userver::formats::json::ValueBuilder{order}.ExtractValue()) +
+            "was assigned to courier: " +
+            userver::formats::json::ToString(
+                userver::formats::json::ValueBuilder{assigned_courier}
+                    .ExtractValue());
+
+        UpdateOrderWithCourier(order.id, assigned_courier);
+      }
+    }
+
+    return "userver::formats::json::ToString(response.ExtractValue())";
   }
+
+ private:
   int ConvertToMinutes(const std::string& time) const {
     return ((time[0] - '0') * 10 + (time[1] - '0')) * 60 +
            ((time[3] - '0') * 10 + (time[4] - '0'));
   }
-  
-  std::string FindCourierForOrder(const TOrder& order,
-                                  std::set<TCourier>& couriers) const {
-    for (auto& courier : couriers) {
 
-      if (IsCourierEligible(order, courier, order.delivery_hours,
-                            courier.working_hours, courier.transport)) {
-        couriers.erase(courier);
-        courier.working_hours += add;
-        couriers.insert(courier);
-        return courier.id;
-      }
-    }
+  std::string MinutesToHours(int interval_begin, int interval_end) const {
+    int beginHours = interval_begin / 60;
+    int beginMins = interval_begin % 60;
 
-    return "";  // No suitable courier found
+    int endHours = interval_end / 60;
+    int endMins = interval_end % 60;
+
+    std::ostringstream oss;
+    oss << std::setw(2) << std::setfill('0') << beginHours << ":"
+        << std::setw(2) << std::setfill('0') << beginMins << "-" << std::setw(2)
+        << std::setfill('0') << endHours << ":" << std::setw(2)
+        << std::setfill('0') << endMins;
+
+    return oss.str();
   }
 
-  int GetTimeDelay(const std::string& transport) const {
-    std::unordered_map<std::string, std::string> time_delay;
+  void UpdateCouierWorkingHours(TCourier& courier, const TOrder& order) const {
+    int courier_interval_begin =
+        ConvertToMinutes(courier.working_hours.substr(0, 5));
+    int courier_interval_end =
+        ConvertToMinutes(courier.working_hours.substr(6, 11));
+    int order_interval_begin =
+        ConvertToMinutes(order.delivery_hours.substr(0, 5));
+    int time_delay = GetTimeDelay(courier.transport);
+    int new_courier_interval_begin =
+        std::max(courier_interval_begin, order_interval_begin) + time_delay;
+    courier.working_hours =
+        MinutesToHours(new_courier_interval_begin, courier_interval_end);
+    return;
+  }
+
+  int GetTimeDelay(std::string& transport) const {
+    std::unordered_map<std::string, int> time_delay;
     time_delay["пеший"] = 25;
     time_delay["велокурьер"] = 12;
     time_delay["авто"] = 8;
@@ -105,30 +135,37 @@ class AssignOrders final : public userver::server::handlers::HttpHandlerBase {
   }
   bool CanDeliverOnTime(const std::string& order_delivery_hours,
                         const std::string& courier_working_hours,
-                        const std::string& courier_transport) const {
-    int delivery_delay = GetTimeDelay(courier.transport);
+                        std::string& courier_transport) const {
+    int delivery_delay = GetTimeDelay(courier_transport);
     int order_interval_begin =
         ConvertToMinutes(order_delivery_hours.substr(0, 5));
     int order_interval_end =
         ConvertToMinutes(order_delivery_hours.substr(6, 11));
-    int courier_free_interval_begin = ConvertToMinutes(courier_working_hours);
+    // Substr -> InvervalBegin, IntervalEnd
+    int courier_free_interval_begin =
+        ConvertToMinutes(courier_working_hours.substr(0, 5));
+    int courier_free_interval_end =
+        ConvertToMinutes(courier_working_hours.substr(6, 11));
     return (order_interval_begin <=
             courier_free_interval_begin + delivery_delay) &&
-           (courier_free_interval_begin + delivery_delay <= order_interval_end);
+           (courier_free_interval_begin + delivery_delay <=
+            order_interval_end) &&
+           (courier_free_interval_begin + delivery_delay <=
+            courier_free_interval_end);
   }
 
   bool IsCourierEligible(const TOrder& order, const TCourier& courier,
                          const std::string& order_delivery_hours,
                          const std::string& courier_working_hours,
-                         const std::string& courier_transport) const {
-    return std::stoi(order.weight) <= GetMaxWeight(courier.transport) &&
+                         std::string& courier_transport) const {
+    return std::stoi(order.weight) <= GetMaxWeight(courier_transport) &&
            order.region == courier.region &&
            CanDeliverOnTime(order_delivery_hours, courier_working_hours,
-                            delivery_delay);
+                            courier_transport);
   }
 
-  int GetMaxWeight(const std::string& transport) const {
-    std::unordered_map<std::string, std::string> max_weight;
+  int GetMaxWeight(std::string& transport) const {
+    std::unordered_map<std::string, int> max_weight;
     max_weight["пеший"] = 10;
     max_weight["велокурьер"] = 20;
     max_weight["авто"] = 40;
@@ -142,6 +179,13 @@ class AssignOrders final : public userver::server::handlers::HttpHandlerBase {
         "UPDATE delivery_service.order SET courier_id=$1 WHERE id=$2",
         courier_id, order_id);
   }
+
+  struct MinFreeTime {
+    bool operator()(const TCourier& a, const TCourier& b){
+
+    };
+  };
+
   userver::storages::postgres::ClusterPtr pg_cluster_;
 };
 

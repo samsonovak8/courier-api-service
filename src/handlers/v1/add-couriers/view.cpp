@@ -38,11 +38,12 @@ class AddCouriers final : public userver::server::handlers::HttpHandlerBase {
     auto working_hours =
         request_body["working_hours"].As<std::optional<std::string>>();
 
-    if (!dataIsEmpty(region, transport, working_hours)) {
+    if (!dataIsValid(region, transport, working_hours)) {
       auto& response = request.GetHttpResponse();
       response.SetStatus(userver::server::http::HttpStatus::kBadRequest);
       return {};
     }
+    
     auto result = pg_cluster_->Execute(
         userver::storages::postgres::ClusterHostType::kMaster,
         "INSERT INTO delivery_service.courier(region, transport, "
@@ -79,7 +80,7 @@ class AddCouriers final : public userver::server::handlers::HttpHandlerBase {
       return false;
     }
 
-    std::regex validTime(R"(([01][0-9]|2[0-3]):[0-5][0-9])");
+    std::regex validTime(R"((([01][0-9]|2[0-3]):[0-5][0-9])-(([01][0-9]|2[0-3]):[0-5][0-9]))");
     if (working_hours && !std::regex_match(*working_hours, validTime)) {
       return false;
     }

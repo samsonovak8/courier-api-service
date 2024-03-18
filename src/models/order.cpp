@@ -13,6 +13,7 @@ userver::formats::json::Value Serialize(
   item["price"] = order.price;
   item["courier_id"] = order.courier_id;
   item["completed_time"] = order.completed_time;
+  item["completed_date"] = order.completed_date;
   return item.ExtractValue();
 }
 
